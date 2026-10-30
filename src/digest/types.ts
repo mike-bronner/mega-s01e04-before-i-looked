@@ -17,3 +17,10 @@ export type NightDigest = {
 };
 
 export type ReadNight = (runsDir: string, night: string) => NightDigest | null;
+
+export type MarkedRow = DigestRow & { marked: boolean };
+
+export type MarkedDigest = {
+  rows: MarkedRow[];
+  badLines: number;
+};

@@ -147,10 +147,10 @@ describe('digest page responses', () => {
 });
 
 describe('digest page table', () => {
-  it('renders one table with one body row per digest row, in code-unit order of job', async () => {
-    const { html } = await page({ rows: [row('alpha'), row('beta'), row('Zeta')], badLines: 0 });
+  it('renders one table with one body row per digest row, in the order the reader returns them', async () => {
+    const { html } = await page({ rows: [row('beta'), row('alpha'), row('Zeta')], badLines: 0 });
     expect(html.match(/<table/g)).toHaveLength(1);
-    expect(bodyRows(html).map((r) => cells(r)[0])).toEqual(['Zeta', 'alpha', 'beta']);
+    expect(bodyRows(html).map((r) => cells(r)[0])).toEqual(['beta', 'alpha', 'Zeta']);
   });
 
   it('shows every field as the reader supplied it, offset kept', async () => {
