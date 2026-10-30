@@ -5,8 +5,17 @@ import type { DigestRow, ReadNight, RunStatus } from './types.js';
 type Entry = { at: string; job: string; status: RunStatus; owner: string | null; error?: string };
 
 const NIGHT = /^\d{4}-\d{2}-\d{2}$/;
-const AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+const AT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-](\d{2}):(\d{2}))$/;
 const STATUSES: readonly unknown[] = ['ok', 'retry', 'fail'] satisfies RunStatus[];
+
+function isDateTime(at: string): boolean {
+  const m = AT.exec(at);
+  if (!m) return false;
+  const [y = 0, mo = 0, d = 0, h = 0, mi = 0, s = 0, oh = 0, om = 0] = m.slice(1).map((g) => Number(g ?? 0));
+  const leap = y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mo - 1] ?? 0;
+  return d >= 1 && d <= days && h <= 23 && mi <= 59 && s <= 59 && oh <= 23 && om <= 59;
+}
 
 function parseEntry(line: string): Entry | null {
   let value: unknown;
@@ -19,7 +28,7 @@ function parseEntry(line: string): Entry | null {
   const e = value as Record<string, unknown>;
   const valid =
     typeof e.job === 'string' && e.job !== '' &&
-    typeof e.at === 'string' && AT.test(e.at) && !Number.isNaN(Date.parse(e.at)) &&
+    typeof e.at === 'string' && isDateTime(e.at) &&
     STATUSES.includes(e.status) &&
     (typeof e.owner === 'string' || e.owner === null) &&
     (!('error' in e) || typeof e.error === 'string');

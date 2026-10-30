@@ -75,6 +75,17 @@ describe('readNight on edge cases', () => {
     ['an at without offset', line('x', { at: '2026-10-29T01:00:00' })],
     ['an at that is no date-time', line('x', { at: 'last night' })],
     ['an at that is no real date', line('x', { at: '2026-13-45T01:00:00+01:00' })],
+    ['an at in month 00', line('x', { at: '2026-00-10T01:00:00Z' })],
+    ['an at on day 00', line('x', { at: '2026-10-00T01:00:00Z' })],
+    ['an at on 30 February', line('x', { at: '2024-02-30T10:00:00Z' })],
+    ['an at on 29 February of a common year', line('x', { at: '2023-02-29T10:00:00+02:00' })],
+    ['an at on 29 February of a century year', line('x', { at: '1900-02-29T10:00:00Z' })],
+    ['an at on 31 April', line('x', { at: '2024-04-31T10:00:00Z' })],
+    ['an at at hour 24', line('x', { at: '2026-10-29T24:00:00Z' })],
+    ['an at at minute 60', line('x', { at: '2026-10-29T01:60:00Z' })],
+    ['an at at second 60', line('x', { at: '2026-10-29T01:00:60Z' })],
+    ['an at with offset hour 24', line('x', { at: '2026-10-29T01:00:00+24:00' })],
+    ['an at with offset minute 60', line('x', { at: '2026-10-29T01:00:00+01:60' })],
     ['an unknown status', line('x', { status: 'done' })],
     ['a missing owner key', JSON.stringify({ at: '2026-10-29T01:00:00+01:00', job: 'x', status: 'ok' })],
     ['a non-string owner', line('x', { owner: 3 })],
@@ -93,6 +104,19 @@ describe('readNight on edge cases', () => {
     expect(readNight(runs, '2026-10-28')).toEqual({
       badLines: 0,
       rows: [expect.objectContaining({ job: 'a/job', firstAt: '2026-10-29T01:00:00Z' })],
+    });
+  });
+
+  it.each([
+    '2024-02-29T10:00:00Z',
+    '2000-02-29T10:00:00Z',
+    '2026-12-31T23:59:59.999-12:00',
+    '2026-01-31T00:00+14:00',
+  ])('accepts the real date-time %s', (at) => {
+    write('2026-10-28', line('a/job', { at }));
+    expect(readNight(runs, '2026-10-28')).toEqual({
+      badLines: 0,
+      rows: [expect.objectContaining({ firstAt: at, lastAt: at })],
     });
   });
 
@@ -142,6 +166,11 @@ describe('readNight on edge cases', () => {
 
   it('returns null for a missing night', () => {
     expect(readNight(runs, '2026-10-28')).toBeNull();
+  });
+
+  it('throws when the night cannot be read for a reason other than a missing file', () => {
+    mkdirSync(join(runs, '2026-10-28.jsonl'));
+    expect(() => readNight(runs, '2026-10-28')).toThrow(/EISDIR/);
   });
 
   it('returns zero rows for a zero-byte file', () => {
