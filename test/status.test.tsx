@@ -1,11 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app.js';
 
 const config = { adapter: 'shim', installed: '2026-10-29T14:06:00+01:00', beatEverySeconds: 60, runsDir: 'runs' };
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe('status board', () => {
   it('shows the lane banner and the nights on disk', async () => {
-    process.env.LANE_MARKER = 'TEST-MARKER';
+    vi.stubEnv('LANE_MARKER', 'TEST-MARKER');
     const res = await createApp(config).request('/');
     const html = await res.text();
     expect(res.status).toBe(200);
@@ -14,7 +18,8 @@ describe('status board', () => {
   });
 
   it('health answers with the lane id', async () => {
+    vi.stubEnv('LANE_ID', 'lane-test-3c');
     const res = await createApp(config).request('/health');
-    expect(await res.json()).toEqual({ ok: true, lane: 'lane-07' });
+    expect(await res.json()).toEqual({ ok: true, lane: 'lane-test-3c' });
   });
 });
