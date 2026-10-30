@@ -144,6 +144,12 @@ describe('digest page responses', () => {
     const { html } = await page({ rows: [], badLines: 0 });
     expect(html).toContain('<span class="marker">no marker set</span>');
   });
+
+  it.each(['', '   '])('shows no marker set when LANE_MARKER is %j, as an unset Actions secret passes it', async (value) => {
+    process.env.LANE_MARKER = value;
+    const { html } = await page({ rows: [], badLines: 0 });
+    expect(html).toContain('<span class="marker">no marker set</span>');
+  });
 });
 
 describe('digest page table', () => {
