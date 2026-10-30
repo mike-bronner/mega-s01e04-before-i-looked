@@ -25,3 +25,18 @@ the same command. Like `pnpm start`, it reads `PORT` from `.env`, else uses 8787
 exits non-zero and writes nothing when rig does not answer 200, when the page holds `<script`,
 `<link`, `src=`, `@import` or `url(`, or when the output folder does not exist. `var/` is
 git-ignored: never commit a preview.
+
+## Publishing the preview
+
+The `Preview` workflow (`.github/workflows/preview.yml`, run by hand) starts rig, saves
+`/digest/2026-10-28` as `index.html`, and deploys that one file to this repo's GitHub Pages
+site. The banner carries the repository secret `LANE_MARKER`, so the run log masks it. When the
+secret is unset or empty, the banner reads "no marker set". If the save fails, the run fails and
+deploys nothing.
+
+```sh
+gh workflow run preview.yml --ref <branch>
+```
+
+To take the marker off, delete the secret or set it empty, then run the workflow again: it
+uploads over the same link.

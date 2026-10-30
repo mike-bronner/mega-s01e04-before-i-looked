@@ -1,0 +1,42 @@
+name: Preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: corepack enable pnpm && corepack install --global pnpm@12
+      - run: pnpm install --no-frozen-lockfile
+      - name: Save /digest/2026-10-28
+        env:
+          LANE_MARKER: ${{ secrets.LANE_MARKER }}
+          SITE: ${{ runner.temp }}/site
+        run: |
+          mkdir "$SITE"
+          pnpm start > "$RUNNER_TEMP/rig.log" 2>&1 &
+          for _ in $(seq 30); do curl -s -o /dev/null http://localhost:8787/health && break; sleep 1; done
+          pnpm save-preview 2026-10-28 "$SITE/index.html"
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: ${{ runner.temp }}/site
+      - id: deployment
+        uses: actions/deploy-pages@v5
