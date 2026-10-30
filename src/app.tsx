@@ -1,11 +1,19 @@
 import { Hono } from 'hono';
 import { loadConfig, type RigConfig } from './config.js';
+import { readNight } from './digest/reader.js';
+import type { ReadNight } from './digest/types.js';
 import { lane } from './lane.js';
 import { readStatus } from './status.js';
+import { Digest } from './views/digest.js';
 import { Layout } from './views/layout.js';
 import { StatusBoard } from './views/status.js';
 
-export function createApp(config: RigConfig = loadConfig()) {
+function isNight(value: string): boolean {
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+}
+
+export function createApp(config: RigConfig = loadConfig(), read: ReadNight = readNight) {
   const app = new Hono();
 
   app.get('/health', (c) => c.json({ ok: true, lane: lane().id }));
@@ -17,6 +25,17 @@ export function createApp(config: RigConfig = loadConfig()) {
       </Layout>,
     ),
   );
+
+  app.get('/digest/:night', (c) => {
+    const night = c.req.param('night');
+    const digest = isNight(night) ? read(config.runsDir, night) : null;
+    if (!digest) return c.notFound();
+    return c.html(
+      <Layout title={`digest ${night}`} lane={lane()}>
+        <Digest night={night} digest={digest} />
+      </Layout>,
+    );
+  });
 
   return app;
 }
