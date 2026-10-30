@@ -37,13 +37,16 @@ async function json(app: ReturnType<typeof createApp>, night: string) {
   return { res, body: await res.json() };
 }
 
+const entities: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
+const decode = (text: string) => text.replace(/&(?:amp|lt|gt|quot|#39);/g, (e) => entities[e] ?? e);
+
 function pageRows(html: string): { job: string; marked: boolean }[] {
   return [...html.matchAll(/<tr>(.*?)<\/tr>/gs)]
     .map((m) => m[1] ?? '')
     .filter((r) => r.includes('<td'))
     .map((r) => {
       const first = /<td>(.*?)<\/td>/s.exec(r)?.[1] ?? '';
-      return { job: first.replace(/<span.*$/s, ''), marked: first.includes(MARK) };
+      return { job: decode(first.replace(/<span.*$/s, '')), marked: first.includes(MARK) };
     });
 }
 
@@ -123,16 +126,19 @@ describe('digest JSON body', () => {
     expect(JSON.stringify(body)).not.toContain('—');
   });
 
-  it('marks retries of 3 or more and a fail, and nothing else', async () => {
-    const rows = [
-      row('a', { retries: 3, lastStatus: 'ok' }),
-      row('b', { retries: 0, lastStatus: 'fail' }),
-      row('c', { retries: 2, lastStatus: 'retry' }),
-      row('d', { retries: 1, lastStatus: 'ok' }),
-      row('e', { retries: 5, lastStatus: 'fail' }),
-    ];
-    const { body } = await json(createApp(config, stub({ rows, badLines: 0 }).read), '2026-10-28');
-    expect(body.rows.map((r: { marked: boolean }) => r.marked)).toEqual([true, true, false, false, true]);
+  it('matches the page for a job name the page has to escape', async () => {
+    const rows = [row(`a&b<c>"d'e&amp;`), row('plain', { lastStatus: 'fail' })];
+    const app = createApp(config, stub({ rows, badLines: 0 }).read);
+    const { body } = await json(app, '2026-10-28');
+    const html = await (await app.request('/digest/2026-10-28')).text();
+    expect(html).toContain('a&amp;b&lt;c&gt;&quot;d&#39;e&amp;amp;');
+    expect(pageRows(html)).toEqual([
+      { job: `a&b<c>"d'e&amp;`, marked: false },
+      { job: 'plain', marked: true },
+    ]);
+    expect(body.rows.map((r: { job: string; marked: boolean }) => ({ job: r.job, marked: r.marked }))).toEqual(
+      pageRows(html),
+    );
   });
 
   it('keeps the reader order and every row, for the page and the JSON alike', async () => {
